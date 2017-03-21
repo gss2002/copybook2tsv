@@ -1,6 +1,0 @@
-Convert Copybook
-./copybook2tsv --convert2tsv --input /hdfsinputfolder/erce/2014/06 --output /hdfsoutputfolder/erce/c20/2014/06 --appname ERCE --recordtype_name RECORD-TYPE,RECORD-TYPE-SEQ --recordtype_value C20 --copybook $HOME/copybooks/ERCEC20.txt --copybook_filetype MFVB --hive_partition LOAD_YEAR=2014,LOAD_MONTH=06
-
-
-Create Hive Table Layout:
-./copybook2tsv -gen_hive_only -convert2tsv --output /hdfsoutputfolder/erce/c20/2014/06 --appname ERCE --recordtype_name RECORD-TYPE,RECORD-TYPE-SEQ --recordtype_value C20 --copybook $HOME/copybooks/ERCEC20.txt --copybook_filetype MFVB --hive_partition LOAD_YEAR=2014,LOAD_MONTH=06

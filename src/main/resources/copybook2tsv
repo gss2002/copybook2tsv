@@ -1,4 +1,0 @@
-binDir=`dirname "$0"`
-echo $binDir
-export HADOOP_CLASSPATH=$binDir/JRecordV2.jar
-/usr/bin/hadoop jar $binDir/copybook2tsv-0.1.jar org.apache.hadoop.copybook2tsv.mapred.CopybookDriver "$@"
