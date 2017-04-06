@@ -117,6 +117,17 @@
 										</source>
 									</sources>
 								</mapping>
+								<mapping>
+									<directory>${app.home}/oozie/</directory>
+									<filemode>755</filemode>
+									<username>root</username>
+									<groupname>root</groupname>
+									<sources>
+										<source>
+											<location>${project.basedir}/src/main/resources/oozie/</location>
+										</source>
+									</sources>
+								</mapping>					
 							</mappings>
 						</configuration>
 					</plugin>

@@ -18,3 +18,4 @@ COPYBOOKJAR=`ls -1 $binDir/lib/copybook2tsv*.jar`
 
 hadoop fs -mkdir -p /apps/copybook2tsv
 hadoop fs -copyFromLocal -f $JRECORDJAR /apps/copybook2tsv/JRecordV2.jar
+hadoop fs -copyFromLocal -f $COPYBOOKJAR /apps/copybook2tsv/copybook2tsv.jar

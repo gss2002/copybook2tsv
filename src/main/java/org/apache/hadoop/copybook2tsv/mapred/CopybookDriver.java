@@ -6,13 +6,9 @@ import java.io.PrintWriter;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
 import net.sf.JRecord.Common.Constants;
 import net.sf.JRecord.Common.FieldDetail;
-import net.sf.JRecord.Common.IFieldDetail;
 import net.sf.JRecord.Details.LayoutDetail;
 import net.sf.JRecord.External.CobolCopybookLoader;
 import net.sf.JRecord.External.CopybookLoader;
@@ -22,30 +18,20 @@ import net.sf.JRecord.Numeric.Convert;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
-import org.apache.commons.cli.PosixParser;
-import org.apache.commons.httpclient.URI;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileChecksum;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.MRJobConfig;
-import org.apache.hadoop.mapreduce.filecache.DistributedCache;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.GenericOptionsParser;
-
-import net.sf.cb2xml.Cb2Xml;
 
 public class CopybookDriver {
 	private static final Log LOG = LogFactory.getLog(CopybookDriver.class.getName());
@@ -368,6 +354,9 @@ public class CopybookDriver {
 			}
 
 			if (!(generateHiveOnly)) {
+				if (System.getProperty("oozie.action.conf.xml") != null) {
+					conf.addResource(new Path("file:///", System.getProperty("oozie.action.conf.xml")));
+				}
 				conf.set("mr.copybook", "./" + hdfscopybookName);
 				conf.setInt("mr.copybookNumericType", numericType);
 				conf.set("mr.recTypeValue", recTypeValue);
@@ -377,6 +366,13 @@ public class CopybookDriver {
 				conf.setBoolean("mr.trace", trace);
 				conf.setBoolean("mr.useRecord", useRecord);
 				conf.setInt("mr.copybookFileType", copybookFileType);
+				// propagate delegation related props from launcher job to MR
+				// job
+				if (System.getenv("HADOOP_TOKEN_FILE_LOCATION") != null) {
+					System.out.println(
+							"HADOOP_TOKEN_FILE_LOCATION is NOT NULL: " + System.getenv("HADOOP_TOKEN_FILE_LOCATION"));
+					conf.set("mapreduce.job.credentials.binary", System.getenv("HADOOP_TOKEN_FILE_LOCATION"));
+				}
 
 				URL cb2xmlUrl = CopybookDriver.class.getClassLoader().getResource("cb2xml.properties");
 				String cb2xmlPath = null;

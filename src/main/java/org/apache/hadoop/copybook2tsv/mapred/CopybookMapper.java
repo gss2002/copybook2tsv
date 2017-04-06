@@ -29,22 +29,13 @@ import java.io.IOException;
  * Base sqoop mapper class that is convenient place for common functionality.
  * Other specific mappers are highly encouraged to inherit from this class.
  */
-public abstract class CopybookMapper<KI, VI, KO, VO>
-  extends Mapper<KI, VI, KO, VO> {
-	
-	  private static final Log LOG = LogFactory.getLog(CopybookMapper.class.getName());
+public abstract class CopybookMapper<KI, VI, KO, VO> extends Mapper<KI, VI, KO, VO> {
 
+	private static final Log LOG = LogFactory.getLog(CopybookMapper.class.getName());
 
-  @Override
-  protected void setup(Context context)
-    throws IOException, InterruptedException {
-    super.setup(context);
+	@Override
+	protected void setup(Context context) throws IOException, InterruptedException {
+		super.setup(context);
 
-    Configuration configuration = context.getConfiguration();
-
-    // Propagate verbose flag if needed
-   // if (configuration.getBoolean(JobBase.PROPERTY_VERBOSE, false)) {
-    //  LoggingUtils.setDebugLevel();
-  //  }
-  }
+	}
 }
