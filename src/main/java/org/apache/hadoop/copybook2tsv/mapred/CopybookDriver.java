@@ -75,6 +75,7 @@ public class CopybookDriver {
 		String appname = null;
 		String recTypeValue = "";
 		String recTypeName = "";
+		String recLength = "";
 		String copybookName = null;
 		String hdfscopybookName = null;
 		String copybookType = null;
@@ -82,6 +83,7 @@ public class CopybookDriver {
 		String hivePath = "./";
 		boolean hivePartition = false;
 		boolean useRecord = true;
+		boolean useRecLength = false;
 		boolean debug = false;
 		boolean trace = false;
 		String hivePartsInfo = null;
@@ -110,6 +112,7 @@ public class CopybookDriver {
 				"--copybook_filetype MFVB somtimes requires --recordtype_name, --record_typevalue");
 		options.addOption("recordtype_value", true, "--recordtype_value, used for MFVB Variable Block files");
 		options.addOption("recordtype_name", true, "--recordtype_name, used for MFVB Variable Block files");
+		options.addOption("record_length", true, "--recordtype_length, used for MFVB Variable Block files");
 		options.addOption("tablename", true, "--tablename, provides hive name of table if no recordtype set");
 		options.addOption("hive_partition", true, "Hive Partition Name/Value Pairs");
 		options.addOption("no_hive_partition", false, "Generate Hive Script w/ Partitions");
@@ -141,6 +144,11 @@ public class CopybookDriver {
 				if (cmd.hasOption("recordtype_value") && cmd.hasOption("recordtype_name")) {
 					recTypeValue = cmd.getOptionValue("recordtype_value");
 					recTypeName = cmd.getOptionValue("recordtype_name");
+				} else if (cmd.hasOption("record_length")) {
+					useRecord = false;
+					useRecLength = true;
+					recLength = cmd.getOptionValue("record_length");
+					hiveTableName = cmd.getOptionValue("tablename");
 				} else if (cmd.hasOption("tablename")) {
 					useRecord = false;
 					hiveTableName = cmd.getOptionValue("tablename");
@@ -174,6 +182,11 @@ public class CopybookDriver {
 				if (cmd.hasOption("recordtype_value") && cmd.hasOption("recordtype_name")) {
 					recTypeValue = cmd.getOptionValue("recordtype_value");
 					recTypeName = cmd.getOptionValue("recordtype_name");
+				} else if (cmd.hasOption("record_length")) {
+					useRecord = false;
+					useRecLength = true;
+					recLength = cmd.getOptionValue("record_length");
+					hiveTableName = cmd.getOptionValue("tablename");
 				} else if (cmd.hasOption("tablename")) {
 					useRecord = false;
 					hiveTableName = cmd.getOptionValue("tablename");
@@ -357,15 +370,17 @@ public class CopybookDriver {
 				if (System.getProperty("oozie.action.conf.xml") != null) {
 					conf.addResource(new Path("file:///", System.getProperty("oozie.action.conf.xml")));
 				}
-				conf.set("mr.copybook", "./" + hdfscopybookName);
-				conf.setInt("mr.copybookNumericType", numericType);
-				conf.set("mr.recTypeValue", recTypeValue);
-				conf.set("mr.recTypeName", recTypeName);
-				conf.setInt("mr.splitOption", splitOption);
-				conf.setBoolean("mr.debug", debug);
-				conf.setBoolean("mr.trace", trace);
-				conf.setBoolean("mr.useRecord", useRecord);
-				conf.setInt("mr.copybookFileType", copybookFileType);
+				conf.set("copybook2tsv.copybook", "./" + hdfscopybookName);
+				conf.setInt("copybook2tsv.copybookNumericType", numericType);
+				conf.set("copybook2tsv.recTypeValue", recTypeValue);
+				conf.set("copybook2tsv.recordLength", recTypeValue);
+				conf.setBoolean("copybook2tsv.useRecordLength", useRecLength);
+				conf.set("copybook2tsv.recTypeName", recTypeName);
+				conf.setInt("copybook2tsv.splitOption", splitOption);
+				conf.setBoolean("copybook2tsv.debug", debug);
+				conf.setBoolean("copybook2tsv.trace", trace);
+				conf.setBoolean("copybook2tsv.useRecord", useRecord);
+				conf.setInt("copybook2tsv.copybookFileType", copybookFileType);
 				// propagate delegation related props from launcher job to MR
 				// job
 				if (System.getenv("HADOOP_TOKEN_FILE_LOCATION") != null) {
