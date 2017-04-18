@@ -43,9 +43,9 @@ public class CopybookParser extends GnuParser {
 
 	// We need a handle to Option.addValueForProcessing(String).
 	// Since Hadoop will load this in a different classloader than
-	// this Sqoop class, we cannot see their package-specific methods.
+	// this base class, we cannot see their package-specific methods.
 	// So we just call it by reflection. As long as we're at it, this
-	// allows us to also put SqoopParser in its own package.
+	// allows us to also put Parser in its own package.
 	private static java.lang.reflect.Method addValForProcessing;
 
 	static {

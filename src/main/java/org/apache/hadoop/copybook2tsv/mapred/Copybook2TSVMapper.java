@@ -30,14 +30,10 @@ public class Copybook2TSVMapper extends AutoProgressMapper<NullWritable, Text, N
 
 	protected void setup(Context context) throws IOException, InterruptedException {
 		super.setup(context);
-
 	}
 
 	@Override
 	protected void map(NullWritable key, Text value, Context context) throws IOException, InterruptedException {
-
 		context.write(key, value);
-
 	}
-
 }

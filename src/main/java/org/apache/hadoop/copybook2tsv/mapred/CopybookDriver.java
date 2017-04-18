@@ -55,12 +55,6 @@ public class CopybookDriver {
 	private static final Log LOG = LogFactory.getLog(CopybookDriver.class.getName());
 	static Options options = new Options();
 
-	/**
-	 * @param args
-	 * 
-	 * 
-	 */
-
 	private static CopybookLoader copybookInt = new CobolCopybookLoader();
 
 	private static void addCopyBooks(String file) throws Exception {
