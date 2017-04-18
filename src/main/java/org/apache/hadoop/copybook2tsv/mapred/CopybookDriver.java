@@ -54,7 +54,6 @@ import org.apache.hadoop.util.GenericOptionsParser;
 public class CopybookDriver {
 	private static final Log LOG = LogFactory.getLog(CopybookDriver.class.getName());
 	static Options options = new Options();
-
 	private static CopybookLoader copybookInt = new CobolCopybookLoader();
 
 	private static void addCopyBooks(String file) throws Exception {
@@ -253,7 +252,6 @@ public class CopybookDriver {
 				+ recTypeName + ", hivePath: " + hivePath + ", hiveTableName: " + hiveTableName
 				+ ", GenerateHiveOnly:(false) " + generateHiveOnly + ", hivePartitionsIn: " + hivePartitionsIn
 				+ ", hivePartition:(false) " + hivePartition);
-		// System.exit(0);
 
 		if (copybookType.equalsIgnoreCase("MFVB")) {
 			numericType = Convert.FMT_MAINFRAME;
@@ -268,7 +266,6 @@ public class CopybookDriver {
 		if (copybookType.equalsIgnoreCase("MFDVB")) {
 			numericType = Convert.FMT_MAINFRAME_COMMA_DECIMAL;
 			copybookFileType = Constants.IO_VB;
-
 		}
 
 		if (copybookSplitOpt.equalsIgnoreCase("REDEFINE")) {
@@ -312,12 +309,12 @@ public class CopybookDriver {
 						"CREATE EXTERNAL TABLE IF NOT EXISTS " + appname + "_" + recTypeValue.replace(".", "") + " (");
 			} else {
 				sbout.append("CREATE EXTERNAL TABLE IF NOT EXISTS " + appname + "_" + hiveTableName + " (");
-
 			}
+
 			boolean firstIn = true;
 			int filterCount = 0;
-			for (int i = 0; i < copyBook.getRecord(0).getFieldCount(); i++) {
 
+			for (int i = 0; i < copyBook.getRecord(0).getFieldCount(); i++) {
 				FieldDetail field = copyBook.getRecord(0).getField(i);
 				String outputClean = field.getName().trim().replaceAll(",", "_").replaceAll(" ", "_")
 						.replaceAll("[()]", "").replaceAll("-", "_");
@@ -335,16 +332,15 @@ public class CopybookDriver {
 				sbout.append(" ");
 				sbout.append("STRING");
 				firstIn = false;
-
 			}
 			sbout.append(") ");
+
 			if (hivePartition) {
 				sbout.append("PARTITIONED BY (" + hiveTablePartition
 						+ ") ROW FORMAT DELIMITED FIELDS TERMINATED BY '\\t' lines terminated by '\\n' STORED AS TEXTFILE LOCATION ");
 				sbout.append("\'hdfs://" + outputPath.replaceAll(hivePartsLocation, "") + "\';");
 				sbout.append("\n");
 				if (useRecord) {
-
 					sbout.append("ALTER TABLE " + appname + "_" + recTypeValue.replace(".", "")
 							+ " ADD IF NOT EXISTS PARTITION (" + hivePartsInfo + ") LOCATION '" + hivePartsLocation
 							+ "';");
@@ -354,22 +350,20 @@ public class CopybookDriver {
 					sbout.append("ALTER TABLE " + appname + "_" + hiveTableName + " ADD IF NOT EXISTS PARTITION ("
 							+ hivePartsInfo + ") LOCATION '" + hivePartsLocation + "';");
 					file = new File(hivePath + "/" + appname + "_" + hiveTableName + ".hive");
-
 				}
-
 			}
+
 			if (!(hivePartition)) {
 				sbout.append(
 						"ROW FORMAT DELIMITED FIELDS TERMINATED BY '\\t' lines terminated by '\\n' STORED AS TEXTFILE LOCATION ");
 				sbout.append("\'hdfs://" + outputPath + "\';");
-
 			}
+
 			if (!(noGenHive)) {
 				if (useRecord) {
 					file = new File(hivePath + "/" + appname + "_" + recTypeValue.replaceAll("\\.", "") + ".hive");
 				} else {
 					file = new File(hivePath + "/" + appname + "_" + hiveTableName.replaceAll("\\.", "") + ".hive");
-
 				}
 				FileWriter writer = new FileWriter(file, false);
 				PrintWriter output = new PrintWriter(writer);
@@ -427,10 +421,10 @@ public class CopybookDriver {
 				} else {
 					jobname = appname + "_" + hiveTableName;
 				}
+
 				@SuppressWarnings("deprecation")
 				Job job = new Job(conf, "CopybookDriver-" + jobname);
 				job.addCacheFile(new Path("/apps/copybook2tsv/JRecordV2.jar").toUri());
-
 				job.addArchiveToClassPath(new Path("/apps/copybook2tsv/JRecordV2.jar"));
 				job.addCacheFile(new Path("hdfs://" + tempPath + "/cb2xml.properties").toUri());
 				job.addCacheFile(new Path("hdfs://" + tempPath + "/" + hdfscopybookName).toUri());
@@ -440,16 +434,12 @@ public class CopybookDriver {
 				job.setOutputFormatClass(TextOutputFormat.class);
 				job.setOutputKeyClass(NullWritable.class);
 				job.setOutputValueClass(Text.class);
-
 				job.setMapperClass(Copybook2TSVMapper.class);
 				job.setNumReduceTasks(0);
-
 				job.setMapOutputKeyClass(Text.class);
 				job.setMapOutputValueClass(Text.class);
-
 				job.setOutputFormatClass(TextOutputFormat.class);
 				FileOutputFormat.setOutputPath(job, new Path(outputPath));
-
 				job.waitForCompletion(true);
 			}
 
@@ -460,7 +450,6 @@ public class CopybookDriver {
 				fs.deleteOnExit(fsTempPath);
 			}
 		}
-
 	}
 
 	private static void missingParams() {
@@ -470,5 +459,4 @@ public class CopybookDriver {
 		formatter.printHelp("get", header, options, footer, true);
 		System.exit(0);
 	}
-
 }
