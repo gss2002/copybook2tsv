@@ -55,20 +55,28 @@ public class CopybookFileRecordReader extends RecordReader<NullWritable, Text> {
 	AbstractLineReader reader;
 	CobolIoProvider ioProvider;
 	int lineNum = 0;
-	String recordTypeValue;
-	// String recordSeqIn;
-	String copybookName;
-	String recordTypeName;
+	String includeRecordTypeValue;
+	String includeRecordTypeName;
+	String excludeRecordTypeValue;
+	String excludeRecordTypeName;
+	String[] includeRecordTypeNameArray;
+	String[] excludeRecordTypeNameArray;
+	boolean includeIsArray = false;
+	boolean excludeIsArray = false;
+	boolean useIncludeRecord;
+	boolean useExcludeRecord;
+	boolean useRecord;
+	boolean useRecLength;
 	String recordLength;
 
 	boolean mrDebug;
 	boolean mrTrace;
-	boolean useRecord;
-	boolean useRecLength;
+	boolean mrTraceAll;
+
+	String copybookName;
 	int copyBookFileType;
 	int splitOption;
 	int copybookSysType;
-	String[] recordTypeNameArray;
 
 	@Override
 	public void initialize(InputSplit split, TaskAttemptContext context) throws IOException, InterruptedException {
@@ -80,45 +88,57 @@ public class CopybookFileRecordReader extends RecordReader<NullWritable, Text> {
 		this.splitOption = conf.getInt("copybook2tsv.splitOption", CopybookLoader.SPLIT_NONE);
 		this.copyBookFileType = conf.getInt("copybook2tsv.copybookFileType", Constants.IO_VB);
 		this.copybookName = conf.get("copybook2tsv.copybook");
-		this.recordTypeValue = conf.get("copybook2tsv.recTypeValue");
-		this.recordTypeName = conf.get("copybook2tsv.recTypeName");
+		this.includeRecordTypeValue = conf.get("copybook2tsv.include.recTypeValue");
+		this.includeRecordTypeName = conf.get("copybook2tsv.include.recTypeName");
+		this.excludeRecordTypeValue = conf.get("copybook2tsv.exclude.recTypeValue");
+		this.excludeRecordTypeName = conf.get("copybook2tsv.exclude.recTypeName");
 		this.recordLength = conf.get("copybook2tsv.recordLength");
-		this.useRecord = conf.getBoolean("copybook2tsv.useRecord", true);
+		this.useIncludeRecord = conf.getBoolean("copybook2tsv.include.useRecord", true);
+		this.useExcludeRecord = conf.getBoolean("copybook2tsv.exclude.useRecord", false);
 		this.useRecLength = conf.getBoolean("copybook2tsv.useRecordLength", true);
+
 		this.mrDebug = conf.getBoolean("copybook2tsv.debug", false);
 		this.mrTrace = conf.getBoolean("copybook2tsv.trace", false);
-		// this.recordSeqIn = conf.get("copybook2tsv.recSeq");
+		this.mrTraceAll = conf.getBoolean("copybook2tsv.traceall", false);
 
-		LOG.info("CopyBook SysType:" + copybookSysType);
-		LOG.info("CopyBook Split:" + splitOption);
-		LOG.info("CopyBook FileType:" + copyBookFileType);
-		LOG.info("CopyBook Name:" + copybookName);
-		LOG.info("Record Type Value:" + recordTypeValue);
-		LOG.info("Record Type Name: " + recordTypeName);
-		LOG.info("UseRecord: " + useRecord);
-		LOG.info("UseRecordLength: " + useRecLength);
+		LOG.info("Copybook SysType:" + copybookSysType);
+		LOG.info("Copybook Split:" + splitOption);
+		LOG.info("Copybook FileType:" + copyBookFileType);
+		LOG.info("Copybook RecordLayout File:" + copybookName);
+		LOG.info("Copybook UseRecordLength: " + useRecLength);
+		if (useRecLength) {
+			LOG.info("Copybook Record Length: " + recordLength);
+		}
+		LOG.info("Copybook UseIncludeRecord: " + useIncludeRecord);
+		if (useIncludeRecord) {
+			LOG.info(
+					"Copybook includeRecordType Name::Value: " + includeRecordTypeName + "::" + includeRecordTypeValue);
+		}
+
+		LOG.info("Copybook UseExcludeRecord: " + useExcludeRecord);
+		if (useExcludeRecord) {
+			LOG.info(
+					"Copybook excludeRecordType Name::Value: " + excludeRecordTypeName + "::" + excludeRecordTypeValue);
+		}
 
 		String[] loggers = { "org.apache.hadoop.copybook2tsv.mapred.CopybookFileRecordReader" };
 
 		if (mrDebug) {
 			for (String ln : loggers) {
+				LOG.info("Enabling Debug");
 				org.apache.log4j.Logger.getLogger(ln).setLevel(org.apache.log4j.Level.DEBUG);
 			}
 		}
 
-		if (mrTrace) {
+		if (mrTrace || mrTraceAll) {
 			for (String ln : loggers) {
+				LOG.info("Enabling Trace");
 				org.apache.log4j.Logger.getLogger(ln).setLevel(org.apache.log4j.Level.TRACE);
 			}
 		}
 
 		this.ioProvider = CobolIoProvider.getInstance();
-		// ioProvider.getLineReader(fileStructure, numericType, splitOption,
-		// args1, filename, provider)
-		// AbstractLineReader reader =
-		// ioProvider.getLineReader(Constants.IO_FIXED_LENGTH,
-		// Convert.FMT_MAINFRAME, CopybookLoader.SPLIT_NONE, this.copybookName,
-		// this.claimFile);
+
 		try {
 			this.reader = this.ioProvider.getLineReader(this.copyBookFileType, this.copybookSysType, this.splitOption,
 					this.copybookName, this.file, this.conf);
@@ -126,13 +146,23 @@ public class CopybookFileRecordReader extends RecordReader<NullWritable, Text> {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		if (useRecord) {
-			recordTypeNameArray = recordTypeName.split(",");
-			LOG.info("RecordNameArray: " + recordTypeNameArray);
-		}
-
-		if (useRecLength) {
-			LOG.info("Record Length: " + recordLength);
+		if (useIncludeRecord || useExcludeRecord) {
+			if (useIncludeRecord) {
+				if (includeRecordTypeName.contains(",")) {
+					includeIsArray = true;
+					includeRecordTypeNameArray = includeRecordTypeName.split(",");
+					LOG.info("includeRecordTypeName::RecordNameArray Length: " + includeRecordTypeName + "::"
+							+ includeRecordTypeNameArray.length);
+				}
+			}
+			if (useExcludeRecord) {
+				if (excludeRecordTypeName.contains(",")) {
+					excludeIsArray = true;
+					excludeRecordTypeNameArray = excludeRecordTypeName.split(",");
+					LOG.info("excludeRecordTypeName::RecordNameArray Length " + excludeRecordTypeName + "::"
+							+ excludeRecordTypeNameArray.length);
+				}
+			}
 		}
 
 	}
@@ -144,43 +174,84 @@ public class CopybookFileRecordReader extends RecordReader<NullWritable, Text> {
 		LayoutDetail copySchema = this.reader.getLayout();
 		int recordId = 0; // Assuming only one record type In the file
 		String cRecord = null;
-		String recType = null;
+		String includeRecType = null;
+		String excludeRecType = null;
+		StringBuffer includeRecValue = new StringBuffer();
+		StringBuffer excludeRecValue = new StringBuffer();
 
 		StringBuffer sb = new StringBuffer();
-		StringBuffer recValue = new StringBuffer();
+
 		while ((copyRecord = this.reader.read()) != null) {
 			lineNum += 1;
-			recValue.setLength(0);
-			if (mrDebug || mrTrace) {
-				LOG.debug("Rec Line and Byte Length: " + lineNum + " :: " + copyRecord.getData().length);
+			excludeRecValue.setLength(0);
+			includeRecValue.setLength(0);
+			if (mrDebug) {
+				LOG.debug("Record Line::ByteLength: " + lineNum + " :: " + copyRecord.getData().length);
 			}
 			Integer copyRecLength = copyRecord.getData().length;
 			if (useRecLength) {
-				LOG.info("Rec Line and Byte Length: " + lineNum + " :: " + copyRecLength);
+				LOG.info("Record Line::ByteLength: " + lineNum + " :: " + copyRecLength);
 			}
 
-			if (useRecord) {
-				if (recordTypeNameArray.length > 1) {
-					for (int i = 0; i < recordTypeNameArray.length; i++) {
-						if (mrDebug || mrTrace) {
-							LOG.debug("Loop RecordNameArray LoopValue: " + recordTypeNameArray[i]);
+			if (useIncludeRecord) {
+				this.useRecord = true;
+				if (includeIsArray) {
+					if (includeRecordTypeNameArray.length > 1) {
+						for (int i = 0; i < includeRecordTypeNameArray.length; i++) {
+							if (mrTraceAll) {
+								LOG.trace("includeIsArray=true, includeRecordNameArray: "
+										+ includeRecordTypeNameArray[i]);
+							}
+							includeRecValue
+									.append(copyRecord.getFieldValue(includeRecordTypeNameArray[i]).asString().trim());
 						}
-						recValue.append(copyRecord.getFieldValue(recordTypeNameArray[i]).asString().trim());
-
-					}
-					recType = recValue.toString();
-					if (mrDebug || mrTrace) {
-						LOG.debug("Loop RecType/RecValue Out: " + recType);
+						includeRecType = includeRecValue.toString();
+						if (mrTraceAll) {
+							LOG.trace("includeIsArray=true, includeRecType_RecordValue: " + includeRecType);
+						}
 					}
 				} else {
-					if (mrDebug || mrTrace) {
-						LOG.debug("ELSE LOOP recTypeName Out: Before:" + recordTypeName + " After:"
-								+ recordTypeName.replace(",", "").trim());
+					if (mrTraceAll) {
+						LOG.trace("includeIsArray=false, includeRecordTypeName::NonClean:" + includeRecordTypeName
+								+ " includeRecordTypeName::Clean:" + includeRecordTypeName.replace(",", "").trim());
 					}
-					recType = copyRecord.getFieldValue(recordTypeName.replace(",", "").trim()).asString().trim();
+					includeRecType = copyRecord.getFieldValue(includeRecordTypeName.replace(",", "").trim()).asString()
+							.trim();
 
-					if (mrDebug || mrTrace) {
-						LOG.debug("ELSE LOOP recTypeValue Out: " + recType);
+					if (mrTraceAll) {
+						LOG.trace("includeIsArray=false, includeRecType_RecordValue: " + includeRecType);
+					}
+				}
+			}
+			if (useExcludeRecord) {
+				this.useRecord = true;
+				if (excludeIsArray) {
+					if (excludeRecordTypeNameArray.length > 1) {
+						for (int i = 0; i < excludeRecordTypeNameArray.length; i++) {
+							if (mrTraceAll) {
+								LOG.trace("excludeIsArray=true, excludeRecordNameArray: "
+										+ excludeRecordTypeNameArray[i]);
+							}
+							excludeRecValue
+									.append(copyRecord.getFieldValue(excludeRecordTypeNameArray[i]).asString().trim());
+						}
+						excludeRecType = excludeRecValue.toString();
+						if (mrTraceAll) {
+							LOG.trace("excludeIsArray=true, excludeRecType_RecordValue: " + excludeRecType);
+						}
+					}
+				} else {
+					if (useExcludeRecord) {
+						if (mrTraceAll) {
+							LOG.trace("excludeIsArray=false, excludeRecordTypeName::NonClean:" + excludeRecordTypeName
+									+ " excludeRecordTypeName::Clean:" + excludeRecordTypeName.replace(",", "").trim());
+						}
+						excludeRecType = copyRecord.getFieldValue(excludeRecordTypeName.replace(",", "").trim())
+								.asString().trim();
+
+						if (mrTraceAll) {
+							LOG.trace("excludeIsArray=false, excludeRecType_RecordValue: " + excludeRecType);
+						}
 					}
 				}
 			}
@@ -189,44 +260,78 @@ public class CopybookFileRecordReader extends RecordReader<NullWritable, Text> {
 
 			if (recordLength != null && useRecLength) {
 				if (Integer.valueOf(recordLength) == copyRecLength) {
-					if (mrDebug || mrTrace) {
-						LOG.debug("RecordLength In " + recordLength + " :: " + copyRecLength);
+					if (mrDebug || mrTrace || mrTraceAll) {
+						LOG.debug("RecordLength String::Integer" + recordLength + " :: " + copyRecLength);
 					}
 					recLength = true;
 				}
 			}
 
 			boolean recTypeValue = false;
-			if (recordTypeValue != null && useRecord) {
-				if (recordTypeValue.equalsIgnoreCase(recType.trim())) {
-					if (mrDebug || mrTrace) {
-						LOG.debug("DEBUG: RecordTypeValue Matches Record Type from File " + recType + "="
-								+ recType.trim());
+			if ((includeRecordTypeValue != null && useIncludeRecord)
+					|| (useExcludeRecord && excludeRecordTypeValue != null)) {
+				if (useIncludeRecord && useExcludeRecord) {
+					if (includeRecordTypeValue.equalsIgnoreCase(includeRecType.trim())) {
+						if (excludeRecordTypeValue.equalsIgnoreCase(excludeRecType.trim())) {
+							if (mrDebug || mrTrace) {
+								LOG.debug("ExcludeRecordTypeValue=true - ExcludeRecord:: " + excludeRecType.trim());
+							}
+							recTypeValue = false;
+						} else {
+							if (mrDebug || mrTrace || mrTraceAll) {
+								LOG.debug("IncludeRecordTypeValue=true - IncludeRecord:: " + includeRecType.trim());
+							}
+							recTypeValue = true;
+						}
 					}
-					recTypeValue = true;
+				}
+				if (useIncludeRecord && (!(useExcludeRecord))) {
+					if (includeRecordTypeValue.equalsIgnoreCase(includeRecType.trim())) {
+						if (mrDebug || mrTrace || mrTraceAll) {
+							LOG.debug("IncludeRecordTypeValue=true - IncludeRecord:: " + includeRecType.trim());
+						}
+						recTypeValue = true;
+					}
+				}
+				if (useExcludeRecord && (!(useIncludeRecord))) {
+					if (!(excludeRecordTypeValue.equalsIgnoreCase(excludeRecType.trim()))) {
+						if (mrDebug || mrTrace || mrTraceAll) {
+							LOG.debug("ExcludeRecordTypeValue=true - ExcludeRecord:: " + excludeRecType.trim());
+						}
+						recTypeValue = false;
+					} else {
+						recTypeValue = true;
+
+					}
 				}
 			}
 			if ((recTypeValue || useRecord == false || recLength == true)) {
 				if (useRecord) {
-					LOG.info("Line " + lineNum + " Record Type: " + recType + " - Schema: "
+					LOG.info("Line::" + lineNum + ", RecordType::" + includeRecType + " - Schema: "
 							+ copySchema.getRecord(recordId).getRecordName());
 				}
 				int recCount = copySchema.getRecord(recordId).getFieldCount();
 				sb.setLength(0);
 				copySchema.getRecord(recordId);
-				if (mrDebug || mrTrace) {
+				if (mrDebug || mrTrace || mrTraceAll) {
 					LOG.debug("CopySchema FieldCount: " + recCount);
-					LOG.debug("CopyRecord - " + recordId + ": " + copySchema.getRecord(recordId).toString());
-					byte[] recByteArray = copyRecord.getData();
-					if (copybookSysType == Convert.FMT_MAINFRAME) {
-						Charset charset = Charset.forName("cp037");
-						byte[] recByteArrayLE = new String(recByteArray, charset).getBytes();
-						LOG.trace("Z/OS EBCIDIC Record Line:  " + new String(recByteArray));
-						LOG.trace("Z/OS EBCIDIC HexString: " + Hex.encodeHexString(recByteArray));
-						LOG.trace("Converted EBCIDIC to ASCII Record Line:  " + new String(recByteArray, charset));
-						LOG.trace("Converted EBCIDIC to ASCII HexString:  " + Hex.encodeHexString(recByteArrayLE));
-					} else {
-						LOG.trace("HexArray Record Line:  " + new String(recByteArray));
+					if (LOG.isTraceEnabled()) {
+						LOG.trace("CopyRecord - " + recordId + ": " + copySchema.getRecord(recordId).toString());
+						if (mrTraceAll) {
+							byte[] recByteArray = copyRecord.getData();
+							if (copybookSysType == Convert.FMT_MAINFRAME) {
+								Charset charset = Charset.forName("cp037");
+								byte[] recByteArrayLE = new String(recByteArray, charset).getBytes();
+								LOG.trace("Z/OS EBCIDIC RecordLine:  " + new String(recByteArray));
+								LOG.trace("Z/OS EBCIDIC HexString: " + Hex.encodeHexString(recByteArray));
+								LOG.trace(
+										"Converted EBCIDIC to ASCII RecordLine:  " + new String(recByteArray, charset));
+								LOG.trace("Converted EBCIDIC to ASCII HexString:  "
+										+ Hex.encodeHexString(recByteArrayLE));
+							} else {
+								LOG.trace("HexArray RecordLine:  " + new String(recByteArray));
+							}
+						}
 					}
 
 				}
@@ -234,9 +339,6 @@ public class CopybookFileRecordReader extends RecordReader<NullWritable, Text> {
 					FieldDetail field = copySchema.getRecord(recordId).getField(i);
 					// Clean the record before passing to stringbuffer appender
 					try {
-						// cRecord =
-						// copyRecord.getFieldValue(field).asString().replaceAll("[\r\n\t]",
-						// " ").trim();
 						cRecord = removeBadChars(copyRecord.getFieldValue(field).asString()).trim();
 						if (cRecord == null || cRecord.isEmpty()) {
 							sb.append("NULL");
@@ -253,7 +355,6 @@ public class CopybookFileRecordReader extends RecordReader<NullWritable, Text> {
 								+ " FontName=" + fontName);
 
 					}
-					// sb.append(claimRecord.getFieldValue(field).asString());
 
 					if (recCount == i) {
 						// sb.append("\n");

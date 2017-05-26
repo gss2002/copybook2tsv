@@ -84,8 +84,10 @@ public class CopybookDriver {
 		String inputPath = null;
 		String outputPath = null;
 		String appname = null;
-		String recTypeValue = "";
-		String recTypeName = "";
+		String includeRecTypeValue = "";
+		String includeRecTypeName = "";
+		String excludeRecTypeValue = "";
+		String excludeRecTypeName = "";
 		String recLength = "";
 		String copybookName = null;
 		String hdfscopybookName = null;
@@ -93,10 +95,12 @@ public class CopybookDriver {
 		String copybookSplitOpt = "NOSPLIT";
 		String hivePath = "./";
 		boolean hivePartition = false;
-		boolean useRecord = true;
+		boolean includeUseRecord = true;
+		boolean excludeUseRecord = false;
 		boolean useRecLength = false;
 		boolean debug = false;
 		boolean trace = false;
+		boolean traceall = false;
 		String hivePartsInfo = null;
 		String hivePartsLocation = null;
 		String hiveTablePartition = null;
@@ -123,6 +127,10 @@ public class CopybookDriver {
 				"--copybook_filetype MFVB somtimes requires --recordtype_name, --record_typevalue");
 		options.addOption("recordtype_value", true, "--recordtype_value, used for MFVB Variable Block files");
 		options.addOption("recordtype_name", true, "--recordtype_name, used for MFVB Variable Block files");
+		options.addOption("exclude_recordtype_value", true,
+				"--exclude_recordtype_value, used for MFVB Variable Block files");
+		options.addOption("exclude_recordtype_name", true,
+				"--exclude_recordtype_name, used for MFVB Variable Block files");
 		options.addOption("record_length", true, "--recordtype_length, used for MFVB Variable Block files");
 		options.addOption("tablename", true, "--tablename, provides hive name of table if no recordtype set");
 		options.addOption("hive_partition", true, "Hive Partition Name/Value Pairs");
@@ -130,6 +138,7 @@ public class CopybookDriver {
 		options.addOption("hive_script_outdir", true, "Hive Script output directory");
 		options.addOption("debug", false, "Debug Logging output to Mapreduce");
 		options.addOption("trace", false, "Trace Logging output to Mapreduce");
+		options.addOption("traceall", false, "TraceAll Logging output to Mapreduce");
 		options.addOption("help", false, "Display help");
 		CommandLineParser parser = new CopybookParser();
 		CommandLine cmd = parser.parse(options, otherArgs);
@@ -148,20 +157,33 @@ public class CopybookDriver {
 					debug = true;
 					trace = true;
 				}
+				if (cmd.hasOption("traceall")) {
+					debug = true;
+					trace = true;
+					traceall = true;
+				}
 				if (cmd.hasOption("copybook_split")) {
 					copybookSplitOpt = cmd.getOptionValue("copybook_split");
 				}
 				copybookType = cmd.getOptionValue("copybook_filetype");
+
+				if (cmd.hasOption("exclude_recordtype_value") && cmd.hasOption("exclude_recordtype_name")) {
+					excludeUseRecord = true;
+					excludeRecTypeValue = cmd.getOptionValue("exclude_recordtype_value");
+					excludeRecTypeName = cmd.getOptionValue("exclude_recordtype_name");
+				}
+
 				if (cmd.hasOption("recordtype_value") && cmd.hasOption("recordtype_name")) {
-					recTypeValue = cmd.getOptionValue("recordtype_value");
-					recTypeName = cmd.getOptionValue("recordtype_name");
+					includeUseRecord = true;
+					includeRecTypeValue = cmd.getOptionValue("recordtype_value");
+					includeRecTypeName = cmd.getOptionValue("recordtype_name");
 				} else if (cmd.hasOption("record_length")) {
-					useRecord = false;
+					includeUseRecord = false;
 					useRecLength = true;
 					recLength = cmd.getOptionValue("record_length");
 					hiveTableName = cmd.getOptionValue("tablename");
 				} else if (cmd.hasOption("tablename")) {
-					useRecord = false;
+					includeUseRecord = false;
 					hiveTableName = cmd.getOptionValue("tablename");
 				} else {
 					missingParams();
@@ -191,15 +213,20 @@ public class CopybookDriver {
 				}
 				copybookType = cmd.getOptionValue("copybook_filetype");
 				if (cmd.hasOption("recordtype_value") && cmd.hasOption("recordtype_name")) {
-					recTypeValue = cmd.getOptionValue("recordtype_value");
-					recTypeName = cmd.getOptionValue("recordtype_name");
+					includeUseRecord = true;
+					includeRecTypeValue = cmd.getOptionValue("recordtype_value");
+					includeRecTypeName = cmd.getOptionValue("recordtype_name");
+				} else if (cmd.hasOption("exclude_recordtype_value") && cmd.hasOption("exclude_recordtype_name")) {
+					excludeUseRecord = true;
+					excludeRecTypeValue = cmd.getOptionValue("exclude_recordtype_value");
+					excludeRecTypeName = cmd.getOptionValue("exclude_recordtype_name");
 				} else if (cmd.hasOption("record_length")) {
-					useRecord = false;
+					includeUseRecord = false;
 					useRecLength = true;
 					recLength = cmd.getOptionValue("record_length");
 					hiveTableName = cmd.getOptionValue("tablename");
 				} else if (cmd.hasOption("tablename")) {
-					useRecord = false;
+					includeUseRecord = false;
 					hiveTableName = cmd.getOptionValue("tablename");
 				} else {
 					missingParams();
@@ -248,8 +275,10 @@ public class CopybookDriver {
 
 		System.out.println("Input:" + inputPath + ", Output: " + outputPath + ", AppName: " + appname
 				+ ", CopyBookName: " + copybookName + ", copybookSplitOpt: " + copybookSplitOpt + ", copybookType: "
-				+ copybookType + "useRecord: " + useRecord + ", RecTypeValue: " + recTypeValue + ", RecTypeName: "
-				+ recTypeName + ", hivePath: " + hivePath + ", hiveTableName: " + hiveTableName
+				+ copybookType + ", useIncludeRecord: " + includeUseRecord + ", IncludeRecTypeValue: "
+				+ includeRecTypeValue + ", IncludeRecTypeName: " + includeRecTypeName + ", useExcludeRecord: "
+				+ excludeUseRecord + ", ExcludeRecTypeValue: " + excludeRecTypeValue + ", ExcludeRecTypeName: "
+				+ excludeRecTypeName + ", hivePath: " + hivePath + ", hiveTableName: " + hiveTableName
 				+ ", GenerateHiveOnly:(false) " + generateHiveOnly + ", hivePartitionsIn: " + hivePartitionsIn
 				+ ", hivePartition:(false) " + hivePartition);
 
@@ -304,9 +333,9 @@ public class CopybookDriver {
 
 			copyBook.getRecord(0).getFieldCount();
 			StringBuffer sbout = new StringBuffer();
-			if (useRecord) {
-				sbout.append(
-						"CREATE EXTERNAL TABLE IF NOT EXISTS " + appname + "_" + recTypeValue.replace(".", "") + " (");
+			if (includeUseRecord) {
+				sbout.append("CREATE EXTERNAL TABLE IF NOT EXISTS " + appname + "_"
+						+ includeRecTypeValue.replace(".", "") + " (");
 			} else {
 				sbout.append("CREATE EXTERNAL TABLE IF NOT EXISTS " + appname + "_" + hiveTableName + " (");
 			}
@@ -340,11 +369,11 @@ public class CopybookDriver {
 						+ ") ROW FORMAT DELIMITED FIELDS TERMINATED BY '\\t' lines terminated by '\\n' STORED AS TEXTFILE LOCATION ");
 				sbout.append("\'hdfs://" + outputPath.replaceAll(hivePartsLocation, "") + "\';");
 				sbout.append("\n");
-				if (useRecord) {
-					sbout.append("ALTER TABLE " + appname + "_" + recTypeValue.replace(".", "")
+				if (includeUseRecord) {
+					sbout.append("ALTER TABLE " + appname + "_" + includeRecTypeValue.replace(".", "")
 							+ " ADD IF NOT EXISTS PARTITION (" + hivePartsInfo + ") LOCATION '" + hivePartsLocation
 							+ "';");
-					file = new File(hivePath + "/" + appname + "_" + recTypeValue.replaceAll("\\.", "") + "_"
+					file = new File(hivePath + "/" + appname + "_" + includeRecTypeValue.replaceAll("\\.", "") + "_"
 							+ hivePartsLocation.replaceAll("/", "_") + ".hive");
 				} else {
 					sbout.append("ALTER TABLE " + appname + "_" + hiveTableName + " ADD IF NOT EXISTS PARTITION ("
@@ -360,8 +389,9 @@ public class CopybookDriver {
 			}
 
 			if (!(noGenHive)) {
-				if (useRecord) {
-					file = new File(hivePath + "/" + appname + "_" + recTypeValue.replaceAll("\\.", "") + ".hive");
+				if (includeUseRecord) {
+					file = new File(
+							hivePath + "/" + appname + "_" + includeRecTypeValue.replaceAll("\\.", "") + ".hive");
 				} else {
 					file = new File(hivePath + "/" + appname + "_" + hiveTableName.replaceAll("\\.", "") + ".hive");
 				}
@@ -378,14 +408,19 @@ public class CopybookDriver {
 				}
 				conf.set("copybook2tsv.copybook", "./" + hdfscopybookName);
 				conf.setInt("copybook2tsv.copybookNumericType", numericType);
-				conf.set("copybook2tsv.recTypeValue", recTypeValue);
-				conf.set("copybook2tsv.recordLength", recTypeValue);
+				conf.setBoolean("copybook2tsv.include.useRecord", includeUseRecord);
+				conf.setBoolean("copybook2tsv.exclude.useRecord", excludeUseRecord);
+				conf.set("copybook2tsv.include.recTypeValue", includeRecTypeValue);
+				conf.set("copybook2tsv.include.recTypeName", includeRecTypeName);
+				conf.set("copybook2tsv.exclude.recTypeValue", excludeRecTypeValue);
+				conf.set("copybook2tsv.exclude.recTypeName", excludeRecTypeName);
+				conf.set("copybook2tsv.recordLength", recLength);
 				conf.setBoolean("copybook2tsv.useRecordLength", useRecLength);
-				conf.set("copybook2tsv.recTypeName", recTypeName);
 				conf.setInt("copybook2tsv.splitOption", splitOption);
 				conf.setBoolean("copybook2tsv.debug", debug);
 				conf.setBoolean("copybook2tsv.trace", trace);
-				conf.setBoolean("copybook2tsv.useRecord", useRecord);
+				conf.setBoolean("copybook2tsv.traceall", traceall);
+
 				conf.setInt("copybook2tsv.copybookFileType", copybookFileType);
 				// propagate delegation related props from launcher job to MR
 				// job
@@ -416,8 +451,8 @@ public class CopybookDriver {
 				fs.copyFromLocalFile(false, true, localPath2, fsTempPath);
 
 				String jobname = null;
-				if (useRecord) {
-					jobname = appname + "_" + recTypeValue.replace(".", "");
+				if (includeUseRecord) {
+					jobname = appname + "_" + includeRecTypeValue.replace(".", "");
 				} else {
 					jobname = appname + "_" + hiveTableName;
 				}
